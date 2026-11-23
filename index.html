@@ -1,0 +1,3218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>내 조건에 맞는 공공지원사업 AI 매칭 키오스크</title>
+  
+  <!-- SEO & Open Graph 메타태그 (깃허브 배포 및 카카오톡/SNS 공유용) -->
+  <meta name="description" content="사용자의 연령, 거주지, 가구형태, 소득수준에 맞는 정부·지자체 공공지원사업을 탐색하고 자격 충족/**
+ * 공공지원사업 AI 매칭 키오스크 - 데이터베이스 (data.js)
+ * 2026년 제주특별자치도 및 제주시 최신 공식 공고·인구정책 통합 데이터 반영
+ */
+
+// 대한민국 17개 광역시·도 및 대표 시·군·구 매핑
+const DISTRICTS_DATA = {
+  "제주특별자치도": [
+    "전체/시·군·구 무관", "제주시", "서귀포시"
+  ],
+  "서울특별시": [
+    "전체/시·군·구 무관", "종로구", "중구", "용산구", "성동구", "광진구", "동대문구", 
+    "중랑구", "성북구", "강북구", "도봉구", "노원구", "은평구", "서대문구", "마포구", 
+    "양천구", "강서구", "구로구", "금천구", "영등포구", "동작구", "관악구", "서초구", 
+    "강남구", "송파구", "강동구"
+  ],
+  "부산광역시": [
+    "전체/시·군·구 무관", "중구", "서구", "동구", "영도구", "부산진구", "동래구", "남구", 
+    "북구", "해운대구", "사하구", "금정구", "강서구", "연제구", "수영구", "사상구", "기장군"
+  ],
+  "대구광역시": [
+    "전체/시·군·구 무관", "중구", "동구", "서구", "남구", "북구", "수성구", "달서구", "달성군", "군위군"
+  ],
+  "인천광역시": [
+    "전체/시·군·구 무관", "중구", "동구", "미추홀구", "연수구", "남동구", "부평구", "계양구", "서구", "강화군", "옹진군"
+  ],
+  "광주광역시": [
+    "전체/시·군·구 무관", "동구", "서구", "남구", "북구", "광산구"
+  ],
+  "대전광역시": [
+    "전체/시·군·구 무관", "동구", "중구", "서구", "유성구", "대덕구"
+  ],
+  "울산광역시": [
+    "전체/시·군·구 무관", "중구", "남구", "동구", "북구", "울주군"
+  ],
+  "세종특별자치시": [
+    "전체/시·군·구 무관", "세종시 전역"
+  ],
+  "경기도": [
+    "전체/시·군·구 무관", "수원시", "성남시", "고양시", "용인시", "부천시", "안산시", "안양시", 
+    "남양주시", "화성시", "평택시", "의정부시", "시흥시", "파주시", "김포시", "광명시", 
+    "광주시", "군포시", "이천시", "오산시", "하남시", "양주시", "구리시", "안성시", "포천시", 
+    "의왕시", "여주시", "양평군", "동두천시", "가평군", "연천군"
+  ],
+  "강원특별자치도": [
+    "전체/시·군·구 무관", "춘천시", "원주시", "강릉시", "동해시", "태백시", "속초시", "삼척시", 
+    "홍천군", "횡성군", "영월군", "평창군", "정선군", "철원군", "화천군", "양구군", "인제군", "고성군", "양양군"
+  ],
+  "충청북도": [
+    "전체/시·군·구 무관", "청주시", "충주시", "제천시", "보은군", "옥천군", "영동군", "증평군", "진천군", "괴산군", "음성군", "단양군"
+  ],
+  "충청남도": [
+    "전체/시·군·구 무관", "천안시", "공주시", "보령시", "아산시", "서산시", "논산시", "계룡시", 
+    "당진시", "금산군", "부여군", "서천군", "청양군", "홍성군", "예산군", "태안군"
+  ],
+  "전북특별자치도": [
+    "전체/시·군·구 무관", "전주시", "군산시", "익산시", "정읍시", "남원시", "김제시", "완주군", 
+    "진안군", "무주군", "장수군", "임실군", "순창군", "고창군", "부안군"
+  ],
+  "전라남도": [
+    "전체/시·군·구 무관", "목포시", "여수시", "순천시", "나주시", "광양시", "담양군", "곡성군", 
+    "구례군", "고흥군", "보성군", "화순군", "장흥군", "강진군", "해남군", "영암군", "무안군", "함평군", "영광군", "장성군", "완도군", "진도군", "신안군"
+  ],
+  "경상북도": [
+    "전체/시·군·구 무관", "포항시", "경주시", "김천시", "안동시", "구미시", "영주시", "영천시", 
+    "상주시", "문경시", "경산시", "의성군", "청송군", "영양군", "영덕군", "청도군", "고령군", "성주군", "칠곡군", "예천군", "봉화군", "울진군", "울릉군"
+  ],
+  "경상남도": [
+    "전체/시·군·구 무관", "창원시", "진주시", "통영시", "사천시", "김해시", "밀양시", "거제시", 
+    "양산시", "의령군", "함안군", "창녕군", "고성군", "남해군", "하동군", "산청군", "함양군", "거창군", "합천군"
+  ]
+};
+
+// 2026 공공지원사업 통합 데이터베이스 (제주 특화 및 중앙정부 핵심 정책)
+const WELFARE_DATA = [
+  {
+    id: "policy-jeju-exam-fee",
+    title: "2026년 제주시 취업준비 청년 자격증 등 응시료 지원사업",
+    org: "제주시 기획예산과 (☎ 064-728-2282)",
+    category: "제주 특화 · 청년 일자리",
+    benefit: "어학·국가기술·전문자격증 등 응시료 실비 1인 연 최대 10만원 지원",
+    targetDescription: "신청일 기준 제주시에 주소를 둔 만 19세~39세 미취업 청년",
+    period: "2026. 8. 12. ~ 예산 소진 시 (조기 마감 가능)",
+    officialUrl: "https://www.jejusi.go.kr",
+    conditions: {
+      minAge: 19,
+      maxAge: 39,
+      regions: ["제주특별자치도"],
+      occupations: ["취업준비생", "대학생", "무직 / 가사·주부 / 기타"],
+      households: [],
+      housings: [],
+      incomeLevels: [] // 소득 무관
+    },
+    criteriaDetail: [
+      { name: "주민등록", rule: "신청일 현재 제주시에 주소지를 둔 청년", matchKey: "region" },
+      { name: "연령 요건", rule: "만 19세 이상 ~ 39세 이하 (신청일 기준)", matchKey: "age" },
+      { name: "취업 상태", rule: "신청일 기준 건강보험 직장가입자가 아닌 미취업자", matchKey: "occupation" },
+      { name: "응시 기간", rule: "2026. 1. 1. 이후 응시한 시험 (어학, 한국사, 국가기술·전문자격 등)", matchKey: "none" }
+    ],
+    documents: [
+      {
+        name: "주민등록표초본",
+        type: "required",
+        issuer: "정부24(온라인 무료) 또는 주민센터",
+        howTo: "신청자 본인의 과거 주소변동 사항 포함 발급"
+      },
+      {
+        name: "신청자 본인 명의 통장사본",
+        type: "required",
+        issuer: "거래 은행 모바일 앱 또는 창구",
+        howTo: "응시료 실비 입금용 계좌번호 확인"
+      },
+      {
+        name: "응시확인서 또는 성적표 (응시일 표기)",
+        type: "required",
+        issuer: "시험 주관 기관 (TOEIC, Q-Net, 국사편찬위 등)",
+        howTo: "2026.1.1. 이후 응시일자와 신청자 성명이 명시된 서류"
+      },
+      {
+        name: "결제 영수증",
+        type: "required",
+        issuer: "카드사 또는 시험 결제대행사",
+        howTo: "실제 본인이 부담한 응시료 결제 내역 증빙"
+      },
+      {
+        name: "건강보험자격득실확인서",
+        type: "required",
+        issuer: "국민건강보험공단 또는 정부24",
+        howTo: "미취업 상태 증빙용 (지역가입자 또는 피부양자)"
+      },
+      {
+        name: "사실증명(사업자등록사실여부)",
+        type: "required",
+        issuer: "국세청 홈택스(손택스)",
+        howTo: "사업자등록 미등록(비사업자) 상태 증명서 발급"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-brokerage-fee",
+    title: "제주 청년 및 주거취약계층 부동산 중개수수료 지원",
+    org: "제주특별자치도 주택토지과 (☎ 064-710-4253)",
+    category: "제주 특화 · 주거비 절감",
+    benefit: "3억원 이하 주택 매매 및 임대차(전·월세) 중개수수료 최대 30만원 지원",
+    targetDescription: "제주도 거주 만 19세~39세 무주택 청년, 신혼부부, 수급자/차상위, 한부모가족",
+    period: "2026. 01. 19. ~ 2026. 12. 31. (예산 소진 시 마감)",
+    officialUrl: "https://www.jejuhwc.co.kr",
+    conditions: {
+      minAge: 19,
+      maxAge: 39,
+      regions: ["제주특별자치도"],
+      occupations: [], // 모든 신분 가능
+      households: [],
+      housings: ["월세", "전세"],
+      incomeLevels: ["중위소득 50% 이하 (수급/차상위)", "중위소득 50~100% (서민가구)"]
+    },
+    criteriaDetail: [
+      { name: "거주 요건", rule: "주민등록법상 제주특별자치도 실거주자", matchKey: "region" },
+      { name: "연령 요건", rule: "만 19세부터 39세까지의 무주택 청년", matchKey: "age" },
+      { name: "계약 요건", rule: "3억원 이하 주택의 임대차(전·월세) 또는 매매 계약 체결", matchKey: "housing" },
+      { name: "지원 횟수", rule: "2년 1회, 생애 최대 3회 지원 가능", matchKey: "none" }
+    ],
+    documents: [
+      {
+        name: "부동산 중개수수료 영수증 (세금계산서 또는 현금영수증)",
+        type: "required",
+        issuer: "공인중개사사무소",
+        howTo: "중개수수료 납부 금액 및 중개업소 직인 확인"
+      },
+      {
+        name: "주택 임대차계약서 사본 (확정일자부)",
+        type: "required",
+        issuer: "주민센터 또는 인터넷등기소",
+        howTo: "계약서 상 확정일자 부여 확인"
+      },
+      {
+        name: "주민등록등본",
+        type: "required",
+        issuer: "정부24",
+        howTo: "제주특별자치도 주민등록 전입 입증"
+      },
+      {
+        name: "신청자 본인 명의 통장사본",
+        type: "required",
+        issuer: "거래 은행",
+        howTo: "지원금 입금용 계좌"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-culture-pass",
+    title: "2026 청년문화예술패스 지원",
+    org: "문화체육관광부 · 제주특별자치도",
+    category: "청년 문화 · 여가",
+    benefit: "공연(연극·뮤지컬·클래식·콘서트 등), 전시, 영화 온라인 관람비 연 20만원 지원",
+    targetDescription: "2026년 기준 19세~20세 청년 (2006~2007년생)",
+    period: "2026. 1. ~ 2026. 12.",
+    officialUrl: "https://www.jeju.go.kr/lifecycle/policy.htm",
+    conditions: {
+      minAge: 19,
+      maxAge: 20,
+      regions: ["제주특별자치도", "전국"],
+      occupations: ["대학생", "취업준비생", "직장인", "무직 / 가사·주부 / 기타"],
+      households: [],
+      housings: [],
+      incomeLevels: [] // 소득 무관
+    },
+    criteriaDetail: [
+      { name: "연령 요건", rule: "2026년 기준 만 19세~20세 청년 (2006년~2007년생)", matchKey: "age" },
+      { name: "문화 지원", rule: "협력 온라인 예매처(인터파크 등)를 통한 포인트 바우처 지급", matchKey: "none" }
+    ],
+    documents: [
+      {
+        name: "문화예술패스 누리집 본인인증",
+        type: "required",
+        issuer: "청년문화예술패스 공식 누리집",
+        howTo: "별도 서류 제출 없이 간편인증(카카오·PASS 등)으로 즉시 포인트 발급"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-kua",
+    title: "국민취업지원제도 (제주 고용센터 연계)",
+    org: "고용노동부 · 제주특별자치도 고용센터 (☎ 064-710-4592)",
+    category: "취업지원 · 생계수당",
+    benefit: "구직촉진수당 월 60만원×6개월(최대 360만원) + 부양가족 월 최대 40만원 + 취업성공수당 최대 150만원",
+    targetDescription: "15세~69세 구직자 (청년 15~34세 특례: 중위소득 120% 이하 선발형 지원)",
+    period: "2026. 1. 1. ~ 2026. 12. 31. (상시 접수)",
+    officialUrl: "https://www.work24.go.kr",
+    conditions: {
+      minAge: 15,
+      maxAge: 69,
+      regions: ["제주특별자치도", "전국"],
+      occupations: ["취업준비생", "무직 / 가사·주부 / 기타", "은퇴 / 정년퇴직"],
+      households: [],
+      housings: [],
+      incomeLevels: ["중위소득 50% 이하 (수급/차상위)", "중위소득 50~100% (서민가구)"]
+    },
+    criteriaDetail: [
+      { name: "연령 요건", rule: "15~69세 (청년특례 만 15세~34세 + 군 복무기간 합산)", matchKey: "age" },
+      { name: "소득 기준", rule: "중위소득 60% 이하 (청년특례는 중위소득 120% 이하까지 완화)", matchKey: "income" },
+      { name: "재산 기준", rule: "가구 재산 합계 4억원 이하 (청년은 5억원 이하)", matchKey: "none" },
+      { name: "취업 경험", rule: "요건심사형 100일 이상 / 청년 선발형은 취업경험 무관", matchKey: "occupation" }
+    ],
+    documents: [
+      {
+        name: "취업지원신청서",
+        type: "required",
+        issuer: "고용24(www.work24.go.kr) 또는 제주 고용센터",
+        howTo: "온라인 전산 작성 및 취업상담 예약"
+      },
+      {
+        name: "가족관계증명서 (상세)",
+        type: "required",
+        issuer: "대법원 전자가족관계등록시스템",
+        howTo: "가구원 수 확정 및 소득·재산 전산조회용"
+      },
+      {
+        name: "소득·재산 및 금융정보제공동의서",
+        type: "required",
+        issuer: "고용24 온라인 전자동의",
+        howTo: "가구원 본인인증으로 전산 처리"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-youth-dream",
+    title: "제주 청년이어드림 지원사업",
+    org: "제주특별자치도 청년정책담당관 (☎ 064-710-3872) · 제주청년센터",
+    category: "제주 특화 · 맞춤형 진로지원",
+    benefit: "AI 기반 맞춤 정책 추천 + 1:1 심층 상담 + 청년이어드림 지원금 최대 60만원 지급",
+    targetDescription: "생애주기별 정책 상담 및 성장을 희망하는 도내 만 19세~39세 청년",
+    period: "연중 상시 신청 (온라인 접수)",
+    officialUrl: "https://jejuyouthdream.com",
+    conditions: {
+      minAge: 19,
+      maxAge: 39,
+      regions: ["제주특별자치도"],
+      occupations: ["대학생", "취업준비생", "직장인", "무직 / 가사·주부 / 기타"],
+      households: [],
+      housings: [],
+      incomeLevels: []
+    },
+    criteriaDetail: [
+      { name: "거주 요건", rule: "신청일 기준 제주특별자치도 거주 청년", matchKey: "region" },
+      { name: "연령 요건", rule: "만 19세 이상 ~ 39세 이하 청년", matchKey: "age" },
+      { name: "단계별 이수", rule: "(1단계) 정책상담 → (2단계) 정책참여 → (3단계) 피드백 완료 시 지원금 차등 지급", matchKey: "none" }
+    ],
+    documents: [
+      {
+        name: "제주청년이어드림 온라인 참가신청서",
+        type: "required",
+        issuer: "청년이어드림 누리집 (jejuyouthdream.com)",
+        howTo: "온라인에서 기본 프로필 입력 및 1:1 상담 예약"
+      },
+      {
+        name: "주민등록초본",
+        type: "required",
+        issuer: "정부24",
+        howTo: "도내 거주사실 확인용"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-rent-support",
+    title: "청년월세 특별지원 & 제주청년 희망충전 월세지원",
+    org: "국토교통부 · 제주특별자치도 주택토지과 (☎ 064-710-4252)",
+    category: "주거 안정 · 월세 지원",
+    benefit: "만 19~39세 무주택 청년에게 월 20만원씩 최대 12개월간 총 240만원 월세 실비 지급",
+    targetDescription: "부모와 별도 거주하는 기준 중위소득 60% 이하 만 19~39세 무주택 청년",
+    period: "연중 상시 접수 (정부24 및 읍·면·동 주민센터)",
+    officialUrl: "https://plus.gov.kr",
+    conditions: {
+      minAge: 19,
+      maxAge: 39,
+      regions: ["제주특별자치도", "전국"],
+      occupations: [],
+      households: ["1인 가구 (자취/독립)"],
+      housings: ["월세"],
+      incomeLevels: ["중위소득 50% 이하 (수급/차상위)", "중위소득 50~100% (서민가구)"]
+    },
+    criteriaDetail: [
+      { name: "연령 요건", rule: "만 19세 ~ 34세(정부사업) 및 만 35~39세(제주 희망충전)", matchKey: "age" },
+      { name: "가구 및 주거", rule: "부모와 따로 사는 무주택 1인가구로서 보증부 월세 거주", matchKey: "household" },
+      { name: "소득 기준", rule: "기준 중위소득 60% 이하 (1인가구 공적소득 약 143만원, 근로소득 205만원 이하)", matchKey: "income" },
+      { name: "재산 요건", rule: "총 재산 1억 2천 2백만원 이하", matchKey: "none" }
+    ],
+    documents: [
+      {
+        name: "확정일자부 임대차계약서 사본",
+        type: "required",
+        issuer: "주민센터(확정일자 날인) 또는 인터넷등기소",
+        howTo: "임대차 계약서 및 월세 금액 확인"
+      },
+      {
+        name: "최근 3개월간 월세 이체 내역서",
+        type: "required",
+        issuer: "거래 은행 모바일 앱",
+        howTo: "임대인 계좌로 월세가 실제 송금된 이체확인증"
+      },
+      {
+        name: "가족관계증명서 (상세)",
+        type: "required",
+        issuer: "대법원 전자가족관계등록시스템",
+        howTo: "부모 및 본인 분리 여부 증빙"
+      },
+      {
+        name: "청년 본인 명의 통장사본",
+        type: "required",
+        issuer: "거래 은행",
+        howTo: "월세 지원금 입금용 계좌"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-welcome-bonus",
+    title: "제주 청년 전입 축하장려금 (탐라청년출발패키지)",
+    org: "제주특별자치도 인구정책담당관 (☎ 064-710-4081)",
+    category: "제주 특화 · 정착 지원",
+    benefit: "도외 전입 청년에게 지역화폐 '탐나는전' 최대 10만~20만원 지급",
+    targetDescription: "2026.1.1. 이후 제주도에 전입한 만 19세~39세 청년 (일반형 10만원, 과거 5년 거주 U턴형 20만원)",
+    period: "연중 상시 신청 (정부24 온라인 신청)",
+    officialUrl: "https://www.gov.kr",
+    conditions: {
+      minAge: 19,
+      maxAge: 39,
+      regions: ["제주특별자치도"],
+      occupations: [],
+      households: [],
+      housings: [],
+      incomeLevels: [] // 소득 무관
+    },
+    criteriaDetail: [
+      { name: "전입 일자", rule: "2026. 1. 1. 이후 제주특별자치도로 전입신고 완료", matchKey: "region" },
+      { name: "전입 전 거주", rule: "전입일 기준 1년 이내 제주도 주민등록 이력이 없어야 함", matchKey: "none" },
+      { name: "연령 요건", rule: "전입일 기준 만 19세 이상 39세 이하 청년", matchKey: "age" }
+    ],
+    documents: [
+      {
+        name: "정부24 온라인 전입 축하장려금 신청",
+        type: "required",
+        issuer: "정부24(gov.kr)",
+        howTo: "행정정보공동이용 사전동의로 자동 확인 (별도 종이 서류 제출 불필요)"
+      },
+      {
+        name: "본인 명의 탐나는전 카드 또는 앱 설치",
+        type: "required",
+        issuer: "탐나는전 모바일 앱",
+        howTo: "지역화폐 포인트 충전용 카드 사전 등록"
+      }
+    ]
+  },
+  {
+    id: "policy-national-scholarship",
+    title: "국가장학금 & 청년 주거안정장학금",
+    org: "교육부 · 한국장학재단 (☎ 1599-2000)",
+    category: "교육 · 대학생 장학",
+    benefit: "등록금 전액 또는 구간별 차등 지원 + 월 최대 20만원 원거리 대학생 주거안정 지원",
+    targetDescription: "대한민국 국적 국내 정규대학 재학·복학생 중 소득 8구간 이하",
+    period: "매 학기 신청 (1학기: 11~12월, 2학기: 5~6월)",
+    officialUrl: "https://www.kosaf.go.kr",
+    conditions: {
+      minAge: 18,
+      maxAge: 35,
+      regions: ["전국", "제주특별자치도"],
+      occupations: ["대학생"],
+      households: [],
+      housings: [],
+      incomeLevels: ["중위소득 50% 이하 (수급/차상위)", "중위소득 50~100% (서민가구)"]
+    },
+    criteriaDetail: [
+      { name: "신분 요건", rule: "국내 대학교 재학 또는 복학 예정인 대학생", matchKey: "occupation" },
+      { name: "소득 기준", rule: "학자금 지원구간 8구간 이하 (기초·차상위 전액 지원)", matchKey: "income" },
+      { name: "성적 요건", rule: "직전학기 12학점 이수 및 80점(B학점) 이상 (기초·차상위 C학점 가능)", matchKey: "none" }
+    ],
+    documents: [
+      {
+        name: "가구원 정보제공 동의",
+        type: "required",
+        issuer: "한국장학재단 웹/앱",
+        howTo: "부모 또는 배우자의 공동/금융인증서로 온라인 전자서명"
+      },
+      {
+        name: "가족관계증명서 (상세)",
+        type: "optional",
+        issuer: "대법원 전자가족관계등록시스템",
+        howTo: "전산 자동조회 실패 시 업로드"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-growth-project",
+    title: "제주 청년성장 프로젝트 (패스파인더)",
+    org: "제주특별자치도 청년정책담당관 (☎ 064-710-8862) · 패스파인더",
+    category: "제주 특화 · 역량강화",
+    benefit: "1:1 진로/심리상담, 자소서·면접 취업워밍업, 기업 실무 프로젝트 및 고용정책 연계 지원",
+    targetDescription: "도내 미취업 청년 및 사회진입 준비 청년 (은둔·고립 청년 1:1 상담 포함)",
+    period: "연중 상시 참가자 모집 (구글폼 신청)",
+    officialUrl: "https://www.jejupathfinder.org",
+    conditions: {
+      minAge: 19,
+      maxAge: 39,
+      regions: ["제주특별자치도"],
+      occupations: ["취업준비생", "대학생", "무직 / 가사·주부 / 기타"],
+      households: [],
+      housings: [],
+      incomeLevels: []
+    },
+    criteriaDetail: [
+      { name: "거주 요건", rule: "제주특별자치도 내 거주하는 청년", matchKey: "region" },
+      { name: "취업 상태", rule: "미취업 청년 또는 취업 역량 강화 희망자", matchKey: "occupation" }
+    ],
+    documents: [
+      {
+        name: "패스파인더 프로그램 참가 신청서",
+        type: "required",
+        issuer: "패스파인더 홈페이지 (www.jejupathfinder.org)",
+        howTo: "원하는 프로그램(진로상담, 취업워밍업, 심리상담 등) 선택 접수"
+      }
+    ]
+  },
+  {
+    id: "policy-jeju-farmer",
+    title: "청년농업인 영농정착 지원사업",
+    org: "제주시 친환경농정과 (☎ 064-728-3314)",
+    category: "농업 · 창업 정착",
+    benefit: "최장 3년간 영농정착지원금 차등 지원 (1년차 월 110만원, 2년차 월 100만원, 3년차 월 90만원)",
+    targetDescription: "만 18세 이상 40세 미만, 독립경영 3년 이하의 청년농업인",
+    period: "매년 11월~12월 정기 접수 (농업e지 시스템)",
+    officialUrl: "http://www.nongupez.go.kr",
+    conditions: {
+      minAge: 18,
+      maxAge: 40,
+      regions: ["제주특별자치도", "전국"],
+      occupations: ["소상공인/프리랜서", "무직 / 가사·주부 / 기타"],
+      households: [],
+      housings: [],
+      incomeLevels: []
+    },
+    criteriaDetail: [
+      { name: "연령 요건", rule: "만 18세 이상 40세 미만 청년", matchKey: "age" },
+      { name: "경영 요건", rule: "농업경영체 등록 후 독립경영 3년 이하", matchKey: "occupation" }
+    ],
+    documents: [
+      {
+        name: "영농정착지원금 신청서 및 영농계획서",
+        type: "required",
+        issuer: "농업e지 포털",
+        howTo: "온라인 전산 접수"
+      },
+      {
+        name: "농업경영체 등록확인서",
+        type: "required",
+        issuer: "국립농산물품질관리원",
+        howTo: "경영주 등록 입증 서류"
+      }
+    ]
+  },
+  {
+    id: "policy-housing-benefit",
+    title: "청년 주거급여 분리지급",
+    org: "국토교통부 · 보건복지부",
+    category: "기초생활보장",
+    benefit: "부모와 떨어져 자취하는 청년에게 지역별 기준임대료 상한 내 월세 전액 실비 지원",
+    targetDescription: "기준 중위소득 50% 이하 기초생활보장 주거급여 수급 가구의 20대 미혼 청년",
+    period: "상시 접수 (주소지 관할 읍·면·동 주민센터)",
+    officialUrl: "https://www.bokjiro.go.kr",
+    conditions: {
+      minAge: 19,
+      maxAge: 30,
+      regions: ["전국", "제주특별자치도"],
+      occupations: ["대학생", "취업준비생", "직장인", "근로 곤란 (질병·장애·간병)", "무직 / 가사·주부 / 기타"],
+      households: ["1인 가구 (자취/독립)"],
+      housings: ["월세"],
+      incomeLevels: ["중위소득 50% 이하 (수급/차상위)"]
+    },
+    criteriaDetail: [
+      { name: "연령 요건", rule: "만 19세 이상 30세 미만의 미혼 자녀", matchKey: "age" },
+      { name: "가구 분리", rule: "부모와 주민등록상 시·군을 달리하여 거주", matchKey: "household" },
+      { name: "소득 기준", rule: "원가구 소득인정액 기준 중위소득 50% 이하", matchKey: "income" },
+      { name: "임대차 계약", rule: "청년 본인 명의 임대차계약 체결 및 전입신고 완료", matchKey: "housing" }
+    ],
+    documents: [
+      {
+        name: "사회보장급여 제공(변경) 신청서",
+        type: "required",
+        issuer: "주소지 관할 읍·면·동 주민센터",
+        howTo: "주민센터 방문하여 청년 주거급여 분리지급 신청"
+      },
+      {
+        name: "청년 본인 명의 임대차계약서",
+        type: "required",
+        issuer: "공인중개사사무소",
+        howTo: "확정일자 날인 필수"
+      },
+      {
+        name: "분리거주 사유 증명서 (재학·재직 증명서 등)",
+        type: "required",
+        issuer: "대학교 또는 직장",
+        howTo: "통학 또는 출퇴근 분리거주 증빙"
+      }
+    ]
+  }
+];
+ 여부와 서류 체크리스트까지 안내하는 AI 서비스">
+  <meta name="keywords" content="공공지원사업, AI복지, 청년지원, 기초생활보장, 주거지원, 키오스크">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="내 조건에 맞는 공공지원사업 AI 매칭 키오스크">
+  <meta property="og:description" content="복잡한 공공지원사업, AI가 내 조건에 맞는 정책과 필요 서류 체크리스트까지 찾아드립니다.">
+  
+  <!-- SVG 파비콘 (브라우저 탭 아이콘) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>">
+  
+  <!-- 키오스크 스타일시트 연결 -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 키오스크 시뮬레이터 본체 프레임 -->
+  <div class="kiosk-device">
+    
+    <!-- 1. 상단 공공 헤더 & 접근성 바 -->
+    <header class="kiosk-header">
+      <div class="header-brand">
+        <span class="brand-badge">정부·지자체 복지 AI</span>
+        <h1 class="brand-title">내 조건에 맞는 <span>공공지원사업 AI</span></h1>
+      </div>
+      <div class="kiosk-actions">
+        <!-- 큰 글씨 모드 토글 -->
+        <button id="btnToggleLargeFont" class="action-btn" title="큰 글씨로 화면을 봅니다">
+          🔍 큰 글씨
+        </button>
+        <!-- 음성 안내(TTS) 토글 -->
+        <button id="btnToggleTTS" class="action-btn" title="음성 안내 켜기/끄기">
+          🔊 음성 안내
+        </button>
+        <!-- 자동 초기화 카운트다운 타이머 -->
+        <div class="timer-badge">
+          ⏱️ <span id="timerCountdown">120</span>초 후 자동 초기화
+        </div>
+        <!-- 처음으로 리셋 버튼 -->
+        <button id="btnResetAll" class="action-btn">
+          🔄 처음으로
+        </button>
+      </div>
+    </header>
+
+    <!-- 인쇄 전용 헤더 (A4 출력 시에만 표시) -->
+    <div class="print-only-header">
+      <h2>[맞춤 공공지원사업 추천 및 필요 서류 확인서]</h2>
+      <p>본 문서는 공공지원사업 AI 매칭 키오스크에서 분석한 결과 리포트입니다.</p>
+    </div>
+
+    <!-- 2. 진행 바 (Wizard Progress) -->
+    <div id="wizardProgress" class="wizard-progress-bar" style="padding: 16px 36px 0 36px;">
+      <div class="wizard-steps-indicator">
+        <span id="stepIndicatorText">단계 1 / 3: 연령 및 거주 지역</span>
+        <span id="stepPercentageText">33%</span>
+      </div>
+      <div class="progress-track">
+        <div id="progressFill" class="progress-fill" style="width: 33%;"></div>
+      </div>
+    </div>
+
+    <!-- 3. 메인 콘텐츠 바디 -->
+    <main class="kiosk-body">
+
+      <!-- Step 0: 메인 인트로 화면 -->
+      <section id="stepIntro" class="step-container active">
+        <div class="hero-box">
+          <div class="hero-tag">공공지원사업 맞춤 매칭 AI 키오스크</div>
+          <h2 class="hero-title">내 상황에 딱 맞는 공공지원사업,<br>AI가 자격과 서류까지 찾아드립니다</h2>
+          <p class="hero-subtitle">
+            수많은 정부·지자체 지원사업 중 내가 받을 수 있는 혜택은 무엇일까요?<br>
+            간단한 조건 입력으로 지원 가능 여부와 준비해야 할 서류 체크리스트까지 한눈에 확인하세요.
+          </p>
+          <div class="hero-buttons">
+            <button id="btnStartSearch" class="btn-start-search">
+              👉 나에게 맞는 지원금 찾기 시작
+            </button>
+            <button id="btnPersonaKim" class="btn-persona-quick">
+              👤 [예시 체험] 20세 자취 대학생 '김청년' 조건으로 체험하기
+            </button>
+          </div>
+        </div>
+
+        <div class="intro-features">
+          <div class="feature-card">
+            <div class="feature-icon">🔍</div>
+            <h3 class="feature-title">맞춤형 지원사업 검색</h3>
+            <p class="feature-desc">연령, 거주지, 가구형태, 소득구간에 따른 중앙정부 및 지자체 지원사업을 탐색합니다.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3 class="feature-title">AI 논리적 자격 분석</h3>
+            <p class="feature-desc">사업별 세부 조건과 내 조건을 항목별로 대조해 충족 여부와 유의사항을 안내합니다.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📋</div>
+            <h3 class="feature-title">서류 체크리스트 & 발급처</h3>
+            <p class="feature-desc">필수/선택 서류를 구분하고, 정부24 등 온·오프라인 발급 방법까지 친절히 정리해 드립니다.</p>
+          </div>
+        </div>
+
+        <div class="privacy-notice-box">
+          🔒 <strong>개인정보 안심 안내:</strong> 주민등록번호 등 민감정보는 일체 수집하지 않으며, 깃허브 배포 및 키오스크 이용 종료 시 모든 입력 정보는 안전하게 자동 초기화됩니다.
+        </div>
+      </section>
+
+      <!-- Step 1: 연령 및 거주 지역 -->
+      <section id="step1" class="step-container">
+        <div class="question-header">
+          <span class="question-badge">STEP 1</span>
+          <h2 class="question-title">연령대와 거주 지역을 선택해주세요</h2>
+          <p class="question-subtitle">중앙정부 및 지자체별 연령 기준과 지역 특화 지원사업을 매칭합니다.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">연령대 (만 나이 기준)</label>
+          <div class="option-grid" id="ageGrid">
+            <div class="option-card" data-age="20" data-label="만 19~29세 (청년층)">
+              <div class="option-card-icon">🎓</div>
+              <div class="option-card-label">만 19 ~ 29세</div>
+              <div class="option-card-sub">청년층 (대학생·사회초년생)</div>
+            </div>
+            <div class="option-card" data-age="32" data-label="만 30~39세 (청년/신혼)">
+              <div class="option-card-icon">💼</div>
+              <div class="option-card-label">만 30 ~ 39세</div>
+              <div class="option-card-sub">청년 후기 및 신혼·단독가구</div>
+            </div>
+            <div class="option-card" data-age="45" data-label="만 40~64세 (중·장년층)">
+              <div class="option-card-icon">🏢</div>
+              <div class="option-card-label">만 40 ~ 64세</div>
+              <div class="option-card-sub">중·장년층 및 가장 가구</div>
+            </div>
+            <div class="option-card" data-age="68" data-label="만 65세 이상 (어르신)">
+              <div class="option-card-icon">👵</div>
+              <div class="option-card-label">만 65세 이상</div>
+              <div class="option-card-sub">시니어 및 기초연금 세대</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label">현재 주민등록 거주 지역</label>
+          <div style="display: flex; gap: 12px;">
+            <select id="selectCity" class="form-select" style="flex: 1;">
+              <!-- 17개 시·도 목록: app.js에서 초기화 및 렌더링 -->
+              <option value="서울특별시" selected>서울특별시</option>
+              <option value="부산광역시">부산광역시</option>
+              <option value="대구광역시">대구광역시</option>
+              <option value="인천광역시">인천광역시</option>
+              <option value="광주광역시">광주광역시</option>
+              <option value="대전광역시">대전광역시</option>
+              <option value="울산광역시">울산광역시</option>
+              <option value="세종특별자치시">세종특별자치시</option>
+              <option value="경기도">경기도</option>
+              <option value="강원특별자치도">강원특별자치도</option>
+              <option value="충청북도">충청북도</option>
+              <option value="충청남도">충청남도</option>
+              <option value="전북특별자치도">전북특별자치도</option>
+              <option value="전라남도">전라남도</option>
+              <option value="경상북도">경상북도</option>
+              <option value="경상남도">경상남도</option>
+              <option value="제주특별자치도">제주특별자치도</option>
+            </select>
+            <select id="selectDistrict" class="form-select" style="flex: 1;">
+              <option value="전체/시·군·구 무관">전체/시·군·구 무관</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="wizard-nav">
+          <button class="btn-nav btn-nav-prev" onclick="goToStep('stepIntro')">이전</button>
+          <button class="btn-nav btn-nav-next" onclick="goToStep('step2')">다음 단계 👉</button>
+        </div>
+      </section>
+
+      <!-- Step 2: 신분 및 가구 형태 -->
+      <section id="step2" class="step-container">
+        <div class="question-header">
+          <span class="question-badge">STEP 2</span>
+          <h2 class="question-title">현재 신분과 가구 형태는 어떠신가요?</h2>
+          <p class="question-subtitle">학자금, 자영업 지원, 1인가구 주거지원 등 대상 자격을 분석합니다.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">현재 상태 (신분/직업)</label>
+          <div class="option-grid" id="occupationGrid">
+            <div class="option-card selected" data-value="대학생">
+              <div class="option-card-icon">📚</div>
+              <div class="option-card-label">대학생 (재학/휴학)</div>
+              <div class="option-card-sub">장학금 및 학자금, 기숙사</div>
+            </div>
+            <div class="option-card" data-value="취업준비생">
+              <div class="option-card-icon">📝</div>
+              <div class="option-card-label">취업준비생 (미취업)</div>
+              <div class="option-card-sub">구직촉진수당, 응시료 지원</div>
+            </div>
+            <div class="option-card" data-value="직장인">
+              <div class="option-card-icon">👔</div>
+              <div class="option-card-label">직장인 / 근로자</div>
+              <div class="option-card-sub">내일저축, 주거 안정 대출</div>
+            </div>
+            <div class="option-card" data-value="소상공인/프리랜서">
+              <div class="option-card-icon">🏪</div>
+              <div class="option-card-label">소상공인 / 프리랜서</div>
+              <div class="option-card-sub">경영안정자금, 창업 바우처</div>
+            </div>
+            <div class="option-card" data-value="근로 곤란 (질병·장애·간병)">
+              <div class="option-card-icon">🩺</div>
+              <div class="option-card-label">근로 곤란 (질병·장애)</div>
+              <div class="option-card-sub">생계급여, 의료비 감면, 긴급지원</div>
+            </div>
+            <div class="option-card" data-value="은퇴 / 정년퇴직">
+              <div class="option-card-icon">🌳</div>
+              <div class="option-card-label">은퇴 / 정년퇴직</div>
+              <div class="option-card-sub">노후 돌봄, 시니어 복지, 관계망</div>
+            </div>
+            <div class="option-card" data-value="무직 / 가사·주부 / 기타">
+              <div class="option-card-icon">🏡</div>
+              <div class="option-card-label">무직 / 전업주부 / 기타</div>
+              <div class="option-card-sub">기초생활보장, 가족센터 지원</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">가구 형태</label>
+          <div class="option-grid" id="householdGrid">
+            <div class="option-card selected" data-value="1인 가구 (자취/독립)">
+              <div class="option-card-icon">🏠</div>
+              <div class="option-card-label">1인 가구 (자취/독립)</div>
+              <div class="option-card-sub">단독 세대주 거주</div>
+            </div>
+            <div class="option-card" data-value="가족/부모 동거 가구">
+              <div class="option-card-icon">👨‍👩‍👧</div>
+              <div class="option-card-label">가족·부모 동거 가구</div>
+              <div class="option-card-sub">부모님 또는 가족과 함께 생활</div>
+            </div>
+            <div class="option-card" data-value="한부모/다자녀 가구">
+              <div class="option-card-icon">👶</div>
+              <div class="option-card-label">한부모 / 다자녀 가구</div>
+              <div class="option-card-sub">가구 특화 복지 지원 대상</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wizard-nav">
+          <button class="btn-nav btn-nav-prev" onclick="goToStep('step1')">이전</button>
+          <button class="btn-nav btn-nav-next" onclick="goToStep('step3')">다음 단계 👉</button>
+        </div>
+      </section>
+
+      <!-- Step 3: 주거 형태 및 소득 분위 -->
+      <section id="step3" class="step-container">
+        <div class="question-header">
+          <span class="question-badge">STEP 3</span>
+          <h2 class="question-title">주거 유형과 소득 수준을 선택해주세요</h2>
+          <p class="question-subtitle">주거급여, 월세 지원, 긴급생계비 등 소득 기준 매칭에 활용됩니다.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">현재 주거 유형</label>
+          <div class="option-grid" id="housingGrid">
+            <div class="option-card selected" data-value="월세">
+              <div class="option-card-icon">🚪</div>
+              <div class="option-card-label">월세 / 보증부 월세</div>
+              <div class="option-card-sub">월세 지원, 주거급여 대상</div>
+            </div>
+            <div class="option-card" data-value="전세">
+              <div class="option-card-icon">🔑</div>
+              <div class="option-card-label">전세</div>
+              <div class="option-card-sub">전세보증금 반환보증, 이자 지원</div>
+            </div>
+            <div class="option-card" data-value="자가/기타">
+              <div class="option-card-icon">🏢</div>
+              <div class="option-card-label">자가 / 기숙사 / 기타</div>
+              <div class="option-card-sub">주택개량 또는 시설·장학 지원</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">가구 소득 수준 (대략적인 구간)</label>
+          <select id="selectIncome" class="form-select">
+            <option value="중위소득 50% 이하 (수급/차상위)" selected>기준 중위소득 50% 이하 (기초생활수급 / 차상위 계층)</option>
+            <option value="중위소득 50~100% (서민가구)">기준 중위소득 50% ~ 100% (일반 서민·중산층 가구)</option>
+            <option value="중위소득 100% 초과">기준 중위소득 100% 초과</option>
+            <option value="잘 모름">잘 모름 (소득 무관 사업 및 전체 기준 안내)</option>
+          </select>
+        </div>
+
+        <div class="wizard-nav">
+          <button class="btn-nav btn-nav-prev" onclick="goToStep('step2')">이전</button>
+          <button class="btn-nav btn-nav-next" onclick="runAnalysis()">AI 맞춤 지원사업 분석하기 🚀</button>
+        </div>
+      </section>
+
+      <!-- Step 4: AI 추론 로딩 애니메이션 -->
+      <section id="stepLoading" class="step-container">
+        <div class="loading-box">
+          <div class="ai-pulse-circle">🤖</div>
+          <h2 class="loading-title">AI가 공공지원사업 데이터와 조건을 분석 중입니다...</h2>
+          <div class="loading-steps-list">
+            <div id="loadStep1" class="loading-step-item active">
+              <span>●</span> 1단계: 정부 및 지자체 지원사업 DB 탐색 중...
+            </div>
+            <div id="loadStep2" class="loading-step-item">
+              <span>●</span> 2단계: 연령·가구·소득별 지원 자격 논리적 추론 및 매칭...
+            </div>
+            <div id="loadStep3" class="loading-step-item">
+              <span>●</span> 3단계: 필수 제출 서류 및 온·오프라인 발급처 체크리스트 생성 중...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step 5: 맞춤형 결과 대시보드 -->
+      <section id="stepResults" class="step-container">
+        <div class="results-header-summary">
+          <div>
+            <h2 style="font-size: 1.45rem; font-weight: 800; color: #1e293b;">
+              <span id="resUserName" style="color: var(--primary);">사용자</span> 님을 위한 맞춤 공공지원사업
+            </h2>
+            <div class="user-tag-row" id="userConditionsSummary">
+              <!-- JS에서 태그 렌더링 -->
+            </div>
+          </div>
+          <div class="result-count-badge">
+            추천 사업 <span id="resCountText" style="color: var(--primary); font-size: 1.4rem;">0</span>건
+          </div>
+        </div>
+
+        <!-- 지원사업 카드 리스트 컨테이너 -->
+        <div class="policy-card-list" id="policyCardList">
+          <!-- JS에서 동적 렌더링 -->
+        </div>
+
+        <!-- 하단 키오스크 출력 및 전달 도구함 -->
+        <div class="results-bottom-actions">
+          <div style="font-size: 0.95rem; font-weight: 700; color: #334155;">
+            결과를 내 스마트폰이나 종이로 받아보세요:
+          </div>
+          <div class="bottom-action-buttons">
+            <button class="btn-output" onclick="openQrModal()">
+              📱 스마트폰 QR 코드
+            </button>
+            <button class="btn-output" onclick="openSmsModal()">
+              💬 알림톡 / 문자 발송
+            </button>
+            <button class="btn-output highlight" onclick="window.print()">
+              🖨️ 안내문 및 서류 인쇄
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 모달 팝업: 자격 상세 & 서류 체크리스트 -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalPolicyTitle" class="modal-title">지원사업 상세 안내</h3>
+        <button class="modal-close-btn" onclick="closeModal('detailModal')">&times;</button>
+      </div>
+      <div class="modal-body" id="modalPolicyBody">
+        <!-- JS 렌더링 -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-output" onclick="closeModal('detailModal')">닫기</button>
+        <a id="btnOfficialLink" href="#" target="_blank" class="btn-output highlight" style="text-decoration: none;">
+          공식 신청처 바로가기 ↗
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 팝업: QR 코드 전송 -->
+  <div id="qrModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 class="modal-title">스마트폰으로 결과 저장</h3>
+        <button class="modal-close-btn" onclick="closeModal('qrModal')">&times;</button>
+      </div>
+      <div class="qr-modal-body">
+        <div class="qr-placeholder-box">
+          <svg width="120" height="120" viewBox="0 0 100 100" fill="#1e293b">
+            <rect x="10" y="10" width="25" height="25" fill="#1e293b"/>
+            <rect x="15" y="15" width="15" height="15" fill="#ffffff"/>
+            <rect x="65" y="10" width="25" height="25" fill="#1e293b"/>
+            <rect x="70" y="15" width="15" height="15" fill="#ffffff"/>
+            <rect x="10" y="65" width="25" height="25" fill="#1e293b"/>
+            <rect x="15" y="70" width="15" height="15" fill="#ffffff"/>
+            <rect x="45" y="15" width="10" height="10" fill="#1e293b"/>
+            <rect x="45" y="45" width="10" height="10" fill="#1e293b"/>
+            <rect x="65" y="65" width="12" height="12" fill="#1e293b"/>
+            <rect x="80" y="80" width="10" height="10" fill="#1e293b"/>
+          </svg>
+        </div>
+        <p style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin-bottom: 6px;">
+          카메라로 스캔하면 모바일로 저장됩니다
+        </p>
+        <p style="font-size: 0.82rem; color: #64748b;">
+          추천 공공지원사업과 필수 서류 체크리스트를 이동 중에도 확인하실 수 있습니다.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-output highlight" onclick="closeModal('qrModal')">확인 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 팝업: 문자(SMS) 알림톡 전송 -->
+  <div id="smsModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title">문자(알림톡)로 안내 받기</h3>
+        <button class="modal-close-btn" onclick="closeModal('smsModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 16px;">
+          입력하신 번호는 안내 발송 즉시 파기되며 다른 용도로 저장되지 않습니다.
+        </p>
+        <div class="form-group">
+          <label class="form-label">휴대폰 번호 입력</label>
+          <input type="tel" id="inputUserPhone" class="form-input" placeholder="010-0000-0000" maxlength="13">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-output" onclick="closeModal('smsModal')">취소</button>
+        <button class="btn-output highlight" onclick="sendSmsSimulation()">무료 전송하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스크립트 연결: 지원사업 DB -> 메인 앱 -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
+MIT License
+
+Copyright (c) 2026 Popular Elementary AI Project (인기초 수행평가)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+# 🏛️ 내 조건에 맞는 공공지원사업 AI 매칭 키오스크
+
+<div align="center">
+
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-222222?style=for-the-badge&logo=githubpages&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)
+
+<br/>
+
+**"복잡한 공공지원사업, AI가 내 상황에 맞는 정책과 필요 서류까지 한 번에 찾아드립니다."**  
+*인기초 수행평가 과제 - 페르소나 기반 창업 아이디어 기획 및 반응형 웹 키오스크 프로토타입*
+
+</div>
+
+---
+
+## 📖 목차
+1. [창업 아이디어 & 서비스 개요](#-1-창업-아이디어--서비스-개요)
+2. [페르소나 시연 (김청년)](#-2-페르소나-시연-김청년)
+3. [주요 기능 & 차별화 포인트](#-3-주요-기능--차별화-포인트)
+4. [알고리즘 설계 (탐색 & 추론)](#-4-알고리즘-설계-탐색--추론)
+5. [깃허브(GitHub) 배포 방법 (초간단 3단계)](#-5-깃허브github-배포-방법-초간단-3단계)
+6. [파일 구조](#-6-파일-구조)
+
+---
+
+## 💡 1. 창업 아이디어 & 서비스 개요
+
+정부와 지자체에서는 국민을 위해 다양한 복지·지원 제도를 운영하지만, 지원 대상(연령, 소득, 가구, 거주지 등)과 신청 기간, 제출 서류가 각각 달라 필요한 혜택을 놓치는 경우가 빈번합니다.
+
+본 프로젝트는 행정복지센터, 청년센터, 구청 로비 등에 설치되는 **공공 키오스크 연동 웹 서비스**로서:
+* 간단한 선택형 질문으로 사용자의 상황(연령, 지역, 신분, 가구형태, 소득수준 등)을 분석하고
+* **AI 탐색 알고리즘**과 **논리적 추론 알고리즘**을 통해 맞춤형 지원사업을 검색하며
+* 지원 자격 충족 여부와 **필수·선택 서류 체크리스트 및 온·오프라인 발급처(정부24, 주민센터 등)**를 한곳에서 직관적으로 안내합니다.
+
+---
+
+## 👤 2. 페르소나 시연: 20세 자취 대학생 '김청년'
+
+* **기본 정보:** 만 20세, 대학교 1학년, 1인 가구(자취생), 저소득 계층
+* **기본 상황:** 고향을 떠나 대학교 인근에서 자취를 시작하여 월세, 식비, 교통비 등 생활비 부담이 큼.
+* **주요 어려움:** 청년 주거급여, 주거안정장학금, 청년월세지원 등 제도가 있지만 대상자인지 모르고 서류 준비가 막막함.
+* **원클릭 체험 기능:** 메인 화면의 **`[예시 체험] 20세 자취 대학생 '김청년'`** 버튼을 누르면 김청년의 조건이 자동으로 채워져 AI 분석 결과와 서류 체크리스트를 즉시 시연할 수 있습니다.
+
+---
+
+## ✨ 3. 주요 기능 & 차별화 포인트
+
+1. **디지털 취약계층 배려 (접근성)**
+   * **🔍 큰 글씨 모드:** 버튼 하나로 모든 제목, 설명, 서류 글씨를 25~40% 확대
+   * **🔊 음성 안내 (TTS):** 브라우저 음성 합성(Web Speech API)을 연동하여 음성으로 단계별 안내 제공
+2. **개인정보 보호 무상태(Stateless) 정책**
+   * 주민등록번호 등 민감정보는 일체 수집하지 않음
+   * `localStorage`나 쿠키를 사용하지 않으며, **120초 미활동 시 또는 새로고침 시 모든 데이터 자동 파기 및 초기화**
+3. **전국 17개 시·도 및 제주시 연동**
+   * 대한민국 17개 광역시·도 및 시·군·구 선택 지원
+   * 사용자가 지역을 선택하면 해당 지역 특화 사업(예: 제주 청년창업, 제주 소상공인 경영안정 등)이 우선 매칭
+4. **다양한 신분 배려**
+   * 대학생, 취준생, 직장인뿐만 아니라 **🩺 근로 곤란(질병·장애·간병)**, **🌳 은퇴/정년퇴직**, **🏡 무직/주부**까지 포괄
+5. **결과 저장 & 오프라인 연계**
+   * 스마트폰 QR 코드 저장 팝업, 알림톡/문자 발송 시뮬레이션, 공공 키오스크 현장 **🖨️ A4 용지 인쇄** 서식 완벽 지원
+
+---
+
+## 🤖 4. 알고리즘 설계 (탐색 & 추론)
+
+```mermaid
+flowchart LR
+    A["키오스크 사용자 입력<br/>(연령/지역/신분/가구/소득)"] --> B["1단계: 탐색 알고리즘<br/>(지원사업 DB 연령·지역 1차 필터링)"]
+    B --> C["2단계: AI 논리적 추론 엔진<br/>(항목별 조건 대조 & 자격 판별)"]
+    C --> D["맞춤형 결과 제공<br/>(충족 뱃지, 서류 체크리스트, 발급처)"]
+```
+
+* **탐색(Search):** 지원사업 DB에서 사용자의 거주 지역과 연령 범위에 부합하는 후보 지원사업 추출
+* **추론(Inference):** 각 후보 사업의 조건(신분, 가구형태, 주거유형, 소득구간)을 논리적으로 대조하여 `🟢 신청 자격 충족` 또는 `🟡 세부 조건 확인 필요` 상태로 분류
+
+---
+
+## 🚀 5. 깃허브(GitHub) 배포 방법 (초간단 3단계)
+
+별도의 Git 프로그램 설치 없이 웹 브라우저에서 바로 올리고 무료 사이트로 배포할 수 있습니다!
+
+### 1단계: 깃허브 새 저장소 만들기
+1. [GitHub](https://github.com)에 로그인 후 우측 상단의 **`+`** ➔ **`New repository`**를 클릭합니다.
+2. `Repository name`에 영문 이름(예: `public-welfare-ai-kiosk`)을 입력하고 **`Create repository`**를 누릅니다.
+
+### 2단계: 파일 드래그 & 드롭 업로드
+1. 생성된 저장소 화면에서 **`uploading an existing file`** 링크를 클릭합니다.
+2. 현재 폴더에 있는 모든 파일(`index.html`, `style.css`, `data.js`, `app.js`, `README.md`, `.gitignore`, `LICENSE`)을 마우스로 끌어다 넣습니다.
+3. 하단의 초록색 **`Commit changes`** 버튼을 누릅니다.
+
+### 3단계: 무료 웹사이트 주소 켜기 (GitHub Pages)
+1. 저장소 상단 메뉴의 **`Settings`** 탭을 클릭합니다.
+2. 왼쪽 사이드바에서 **`Pages`** 메뉴를 클릭합니다.
+3. `Branch` 항목의 **`None`**을 클릭하여 **`main`**으로 변경하고 **`Save`**를 누릅니다.
+4. 약 1분 후 상단에 **`https://내아이디.github.io/저장소이름/`** 형태의 무료 웹사이트 주소가 생성되며, 전 세계 누구나 접속할 수 있습니다! 🎉
+
+---
+
+## 📂 6. 파일 구조
+
+```text
+📁 인기초 수행평가/
+├── index.html        # 키오스크 메인 화면 (마크업, OG 메타태그, 모달)
+├── style.css         # 키오스크 터치 UI, 큰 글씨 모드, 반응형, A4 인쇄 서식
+├── data.js           # 공공지원사업 데이터베이스 (10대 핵심 지원사업 내장)
+├── app.js            # AI 탐색/추론 엔진, TTS 음성 안내, 120초 자동 초기화
+├── README.md         # 깃허브 메인 프로젝트 소개서
+├── LICENSE           # 오픈소스 라이선스 (MIT)
+└── .gitignore        # 불필요한 OS/임시 파일 업로드 방지
+```
+
+---
+
+<div align="center">
+  <b>© 2026 공공지원사업 맞춤 매칭 AI 키오스크 프로젝트</b>
+</div>
+
+/* ==============================================================================
+   청년 맞춤 공공지원사업 AI 키오스크 - 스타일시트 (style.css)
+   ============================================================================== */
+
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #eff6ff;
+  --secondary: #0d9488;
+  --secondary-light: #f0fdfa;
+  --accent: #f59e0b;
+  --success: #16a34a;
+  --warning: #ea580c;
+  --danger: #dc2626;
+
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-kiosk: #f1f5f9;
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+
+  --font-base: 16px;
+  --transition-fast: 0.2s ease;
+}
+
+/* ==============================================================================
+   🔍 큰 글씨 (접근성) 모드 스타일 - 공공 키오스크 어르신/저시력자 전용
+   ============================================================================== */
+html.large-font-mode {
+  font-size: 19px !important;
+}
+
+body.large-font-mode {
+  --font-base: 20px;
+  --text-main: #000000;
+  --text-muted: #1e293b;
+  --border-color: #94a3b8;
+  font-size: 20px !important;
+  line-height: 1.6 !important;
+}
+
+/* 상단 헤더 & 타이머 큰 글씨 */
+body.large-font-mode .brand-title {
+  font-size: 1.45rem !important;
+  font-weight: 900 !important;
+}
+
+body.large-font-mode .brand-badge {
+  font-size: 0.95rem !important;
+  padding: 6px 14px !important;
+}
+
+body.large-font-mode .action-btn {
+  font-size: 1.1rem !important;
+  padding: 10px 18px !important;
+  font-weight: 800 !important;
+}
+
+body.large-font-mode .timer-badge {
+  font-size: 1.05rem !important;
+  padding: 9px 16px !important;
+  font-weight: 800 !important;
+}
+
+/* 메인 인트로 히어로 큰 글씨 */
+body.large-font-mode .hero-box {
+  padding: 44px 38px !important;
+}
+
+body.large-font-mode .hero-tag {
+  font-size: 1.05rem !important;
+  padding: 6px 16px !important;
+}
+
+body.large-font-mode .hero-title {
+  font-size: 2.35rem !important;
+  line-height: 1.35 !important;
+}
+
+body.large-font-mode .hero-subtitle {
+  font-size: 1.25rem !important;
+  line-height: 1.6 !important;
+}
+
+body.large-font-mode .btn-start-search {
+  font-size: 1.35rem !important;
+  padding: 20px 38px !important;
+}
+
+body.large-font-mode .btn-persona-quick {
+  font-size: 1.15rem !important;
+  padding: 18px 28px !important;
+}
+
+body.large-font-mode .feature-icon {
+  font-size: 2.4rem !important;
+}
+
+body.large-font-mode .feature-title {
+  font-size: 1.3rem !important;
+}
+
+body.large-font-mode .feature-desc {
+  font-size: 1.05rem !important;
+  color: #1e293b !important;
+}
+
+body.large-font-mode .privacy-notice-box {
+  font-size: 1.05rem !important;
+  padding: 18px 22px !important;
+}
+
+/* 단계별 질문 헤더 큰 글씨 */
+body.large-font-mode .question-badge {
+  font-size: 1.05rem !important;
+  padding: 6px 16px !important;
+}
+
+body.large-font-mode .question-title {
+  font-size: 2rem !important;
+  font-weight: 900 !important;
+}
+
+body.large-font-mode .question-subtitle {
+  font-size: 1.2rem !important;
+  color: #1e293b !important;
+}
+
+body.large-font-mode .form-label {
+  font-size: 1.2rem !important;
+}
+
+body.large-font-mode .form-select,
+body.large-font-mode .form-input {
+  font-size: 1.2rem !important;
+  padding: 18px 20px !important;
+  height: auto !important;
+}
+
+/* 카드 선택 그리드 큰 글씨 */
+body.large-font-mode .option-card {
+  padding: 24px 20px !important;
+  border-width: 3px !important;
+}
+
+body.large-font-mode .option-card-icon {
+  font-size: 2.5rem !important;
+}
+
+body.large-font-mode .option-card-label {
+  font-size: 1.35rem !important;
+  font-weight: 900 !important;
+}
+
+body.large-font-mode .option-card-sub {
+  font-size: 1.05rem !important;
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+body.large-font-mode .btn-nav {
+  font-size: 1.25rem !important;
+  padding: 18px 36px !important;
+}
+
+/* 결과 화면 대시보드 큰 글씨 */
+body.large-font-mode .user-tag {
+  font-size: 1rem !important;
+  padding: 6px 12px !important;
+  font-weight: 700 !important;
+}
+
+body.large-font-mode .result-count-badge {
+  font-size: 1.3rem !important;
+  padding: 12px 22px !important;
+}
+
+body.large-font-mode .policy-card {
+  padding: 28px !important;
+  border-width: 3px !important;
+}
+
+body.large-font-mode .policy-org {
+  font-size: 1rem !important;
+  font-weight: 800 !important;
+}
+
+body.large-font-mode .policy-title {
+  font-size: 1.65rem !important;
+  font-weight: 900 !important;
+  margin-top: 4px !important;
+}
+
+body.large-font-mode .eligibility-status-badge {
+  font-size: 1.05rem !important;
+  padding: 8px 16px !important;
+}
+
+body.large-font-mode .policy-benefit-highlight {
+  font-size: 1.2rem !important;
+  line-height: 1.6 !important;
+  padding: 14px 18px !important;
+}
+
+body.large-font-mode .policy-meta-grid {
+  font-size: 1.05rem !important;
+  color: #1e293b !important;
+  line-height: 1.6 !important;
+}
+
+body.large-font-mode .btn-card-action {
+  font-size: 1.15rem !important;
+  padding: 14px 22px !important;
+}
+
+body.large-font-mode .btn-output {
+  font-size: 1.15rem !important;
+  padding: 16px 26px !important;
+}
+
+/* 모달 팝업 및 서류 체크리스트 큰 글씨 */
+body.large-font-mode .modal-title {
+  font-size: 1.5rem !important;
+  font-weight: 900 !important;
+}
+
+body.large-font-mode .modal-section-title {
+  font-size: 1.25rem !important;
+  font-weight: 900 !important;
+}
+
+body.large-font-mode .condition-table th,
+body.large-font-mode .condition-table td {
+  font-size: 1.1rem !important;
+  padding: 14px 18px !important;
+}
+
+body.large-font-mode .doc-item {
+  padding: 18px !important;
+}
+
+body.large-font-mode .doc-checkbox {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+body.large-font-mode .doc-name {
+  font-size: 1.25rem !important;
+  font-weight: 900 !important;
+}
+
+body.large-font-mode .doc-type-badge {
+  font-size: 0.85rem !important;
+  padding: 4px 8px !important;
+}
+
+body.large-font-mode .doc-issuer-desc {
+  font-size: 1.05rem !important;
+  color: #334155 !important;
+}
+
+body.large-font-mode .doc-how-to {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-size: var(--font-base);
+  color: var(--text-main);
+  background: #0f172a;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  line-height: 1.5;
+  padding: 16px;
+}
+
+/* 키오스크 시뮬레이터 외부 프레임 */
+.kiosk-device {
+  width: 100%;
+  max-width: 960px;
+  min-height: 860px;
+  background: var(--bg-main);
+  border-radius: 28px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45), 0 0 0 12px #334155;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 상단 키오스크 공공 헤더 & 접근성 바 */
+.kiosk-header {
+  background: #ffffff;
+  border-bottom: 2px solid var(--border-color);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-badge {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  letter-spacing: -0.2px;
+}
+
+.brand-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-title span {
+  color: var(--primary);
+}
+
+.kiosk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-btn {
+  background: #f1f5f9;
+  border: 1px solid var(--border-color);
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+  background: #e2e8f0;
+}
+
+.action-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.timer-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--warning);
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  padding: 7px 12px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 메인 키오스크 콘텐츠 영역 */
+.kiosk-body {
+  flex: 1;
+  padding: 32px 36px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 진행 바 (Wizard Progress) */
+.wizard-progress-bar {
+  display: none; /* 홈에서는 숨김 */
+  margin-bottom: 28px;
+}
+
+.wizard-steps-indicator {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 25%;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  border-radius: var(--radius-full);
+  transition: width 0.35s ease;
+}
+
+/* 화면 단계 컨테이너 */
+.step-container {
+  display: none;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.step-container.active {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 인트로 화면 (Step 0) */
+.hero-box {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #0d9488 100%);
+  color: #ffffff;
+  padding: 36px 32px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-box::after {
+  content: "AI 복지";
+  position: absolute;
+  right: -10px;
+  bottom: -20px;
+  font-size: 7rem;
+  font-weight: 900;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+.hero-tag {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.hero-title {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+
+.hero-subtitle {
+  font-size: 1.05rem;
+  opacity: 0.92;
+  margin-bottom: 24px;
+  max-width: 600px;
+}
+
+.hero-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btn-start-search {
+  background: #ffffff;
+  color: var(--primary);
+  font-size: 1.15rem;
+  font-weight: 800;
+  padding: 16px 32px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-start-search:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.btn-persona-quick {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(4px);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 16px 22px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.btn-persona-quick:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 홈 안내 카드 3종 */
+.intro-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.feature-card {
+  background: var(--bg-card);
+  padding: 22px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.feature-icon {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+}
+
+.feature-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.feature-desc {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.privacy-notice-box {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 질문 단계 공통 스타일 */
+.question-header {
+  margin-bottom: 24px;
+}
+
+.question-badge {
+  display: inline-block;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  margin-bottom: 8px;
+}
+
+.question-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.question-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+/* 카드 선택 그리드 */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.option-card {
+  background: #ffffff;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  user-select: none;
+}
+
+.option-card:hover {
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.option-card.selected {
+  border-color: var(--primary);
+  background: #f0f7ff;
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.option-card-icon {
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+}
+
+.option-card-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.option-card-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* 선택 입력 폼 요소 */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  color: #334155;
+}
+
+.form-select, .form-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1rem;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-color);
+  background: #ffffff;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.form-select:focus, .form-input:focus {
+  border-color: var(--primary);
+}
+
+/* 하단 내비게이션 버튼 바 */
+.wizard-nav {
+  margin-top: auto;
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.btn-nav {
+  padding: 14px 28px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.btn-nav-prev {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.btn-nav-prev:hover {
+  background: #cbd5e1;
+}
+
+.btn-nav-next {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.btn-nav-next:hover {
+  background: var(--primary-hover);
+}
+
+/* 로딩 & AI 추론 시뮬레이션 화면 (Step 5) */
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 1;
+  padding: 40px 20px;
+}
+
+.ai-pulse-circle {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2.2rem;
+  margin-bottom: 24px;
+  animation: pulse 1.6s infinite ease-in-out;
+  box-shadow: 0 0 30px rgba(37, 99, 235, 0.4);
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(37, 99, 235, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+.loading-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.loading-steps-list {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 24px;
+  width: 100%;
+  max-width: 480px;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.loading-step-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  color: var(--text-muted);
+}
+
+.loading-step-item.active {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.loading-step-item.done {
+  color: var(--success);
+}
+
+/* 결과 화면 (Step 6) */
+.results-header-summary {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.user-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.user-tag {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.result-count-badge {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+/* 지원사업 추천 카드 리스트 */
+.policy-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.policy-card {
+  background: #ffffff;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.policy-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.policy-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.policy-org {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+.policy-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin-top: 2px;
+}
+
+.eligibility-status-badge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.status-high {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-check {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.policy-benefit-highlight {
+  background: #f8fafc;
+  border-left: 4px solid var(--primary);
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.policy-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.policy-card-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-card-action {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.btn-card-action:hover {
+  background: #f8fafc;
+}
+
+.btn-card-action.primary {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.btn-card-action.primary:hover {
+  background: var(--primary-hover);
+}
+
+/* 결과 하단 키오스크 출력/전달 툴바 */
+.results-bottom-actions {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.bottom-action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-output {
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.btn-output:hover {
+  background: #f1f5f9;
+}
+
+.btn-output.highlight {
+  background: var(--secondary);
+  color: #ffffff;
+  border-color: var(--secondary);
+}
+
+.btn-output.highlight:hover {
+  background: #0f766e;
+}
+
+/* 모달 팝업 스타일 (상세 정보 / 서류 체크리스트 / QR / 문자 발송) */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-card {
+  background: #ffffff;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalUp 0.25s ease;
+}
+
+@keyframes modalUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-section-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 자격 조건 비교 테이블 */
+.condition-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+}
+
+.condition-table th, .condition-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.condition-table th {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #475569;
+}
+
+/* 서류 체크리스트 아이템 */
+.document-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.doc-item {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: all var(--transition-fast);
+}
+
+.doc-item.checked {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.doc-checkbox {
+  width: 20px;
+  height: 20px;
+  margin-top: 3px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.doc-content {
+  flex: 1;
+}
+
+.doc-name {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-type-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.doc-type-badge.required {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.doc-type-badge.optional {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.doc-issuer-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.doc-how-to {
+  font-size: 0.83rem;
+  color: var(--primary);
+  margin-top: 4px;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+/* QR 코드 모달 스타일 */
+.qr-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.qr-placeholder-box {
+  width: 180px;
+  height: 180px;
+  background: #ffffff;
+  border: 2px dashed #94a3b8;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  padding: 10px;
+}
+
+/* 반응형 처리 (모바일 / 태블릿) */
+@media (max-width: 768px) {
+  body {
+    padding: 0;
+  }
+  .kiosk-device {
+    border-radius: 0;
+    min-height: 100vh;
+    box-shadow: none;
+  }
+  .kiosk-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .kiosk-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .kiosk-body {
+    padding: 20px 16px;
+  }
+  .hero-title {
+    font-size: 1.6rem;
+  }
+  .intro-features {
+    grid-template-columns: 1fr;
+  }
+  .results-header-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ==============================================================================
+   A4 인쇄 전용 스타일 (@media print)
+   ============================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+  }
+  .kiosk-device {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+  }
+  .kiosk-header,
+  .wizard-progress-bar,
+  .wizard-nav,
+  .results-bottom-actions,
+  .policy-card-actions,
+  .modal-overlay,
+  .privacy-notice-box {
+    display: none !important;
+  }
+  .print-only-header {
+    display: block !important;
+    border-bottom: 2px solid #000;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+  .policy-card {
+    border: 1px solid #94a3b8 !important;
+    break-inside: avoid;
+    margin-bottom: 16px;
+  }
+}
+
+.print-only-header {
+  display: none;
+}
+
+
+/**
+ * 공공지원사업 맞춤 매칭 AI 키오스크 - 메인 애플리케이션 (app.js)
+ * 
+ * 기능:
+ * 1. 마법사(Wizard) 단계별 이동 및 UI 동기화
+ * 2. 페르소나('김청년') 1-Click 자동 입력 및 즉시 시연
+ * 3. AI 탐색 및 논리적 추론 매칭 엔진 (자격 충족 여부 판정)
+ * 4. 세부 자격 비교표 & 온·오프라인 서류 체크리스트 렌더링
+ * 5. 접근성: 큰 글씨 모드, Web Speech API 음성 안내(TTS)
+ * 6. 개인정보 무상태 보호: 120초 미활동 시 자동 파기 및 초기화
+ * 7. QR 코드 및 모의 알림톡/문자 발송 모달
+ */
+
+// ==============================================================================
+// 1. 애플리케이션 상태 (State)
+// ==============================================================================
+const state = {
+  currentStep: 'stepIntro',
+  userName: '사용자',
+  userConditions: {
+    age: 20,
+    ageLabel: '만 19~29세 (청년층)',
+    city: '서울특별시',
+    district: '전체/시·군·구 무관',
+    occupation: '대학생',
+    household: '1인 가구 (자취/독립)',
+    housing: '월세',
+    income: '중위소득 50% 이하 (수급/차상위)'
+  },
+  isLargeFont: false,
+  isTTS: false,
+  inactivityTimer: null,
+  countdownInterval: null,
+  timeLeft: 120
+};
+
+// ==============================================================================
+// 2. 초기화 (DOM Ready)
+// ==============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  initDistrictOptions();
+  bindStepNavigationEvents();
+  bindOptionCardEvents();
+  bindAccessibilityEvents();
+  bindPersonaEvents();
+  startInactivityTimer();
+  updateProgressUI('stepIntro');
+});
+
+// ==============================================================================
+// 3. 지역(시·도 / 시·군·구) 셀렉트 동적 연동
+// ==============================================================================
+function initDistrictOptions() {
+  const citySelect = document.getElementById('selectCity');
+  const districtSelect = document.getElementById('selectDistrict');
+  if (!citySelect || !districtSelect) return;
+
+  function updateDistricts(city) {
+    districtSelect.innerHTML = '';
+    const districts = DISTRICTS_DATA[city] || ['전체/시·군·구 무관'];
+    districts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      districtSelect.appendChild(opt);
+    });
+    state.userConditions.district = districtSelect.value;
+  }
+
+  citySelect.addEventListener('change', (e) => {
+    state.userConditions.city = e.target.value;
+    updateDistricts(e.target.value);
+    resetInactivityTimer();
+  });
+
+  districtSelect.addEventListener('change', (e) => {
+    state.userConditions.district = e.target.value;
+    resetInactivityTimer();
+  });
+
+  // 초기 렌더링
+  updateDistricts(citySelect.value);
+
+  // 소득 분위 셀렉트
+  const incomeSelect = document.getElementById('selectIncome');
+  if (incomeSelect) {
+    incomeSelect.addEventListener('change', (e) => {
+      state.userConditions.income = e.target.value;
+      resetInactivityTimer();
+    });
+  }
+}
+
+// ==============================================================================
+// 4. 선택형 옵션 카드(Grid Card) 클릭 이벤트 바인딩
+// ==============================================================================
+function bindOptionCardEvents() {
+  // 연령대 카드 (STEP 1)
+  const ageCards = document.querySelectorAll('#ageGrid .option-card');
+  ageCards.forEach(card => {
+    card.addEventListener('click', () => {
+      ageCards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.userConditions.age = parseInt(card.dataset.age, 10) || 20;
+      state.userConditions.ageLabel = card.dataset.label || '만 19~29세 (청년층)';
+      speakTTS(`${state.userConditions.ageLabel}가 선택되었습니다.`);
+      resetInactivityTimer();
+    });
+  });
+
+  // 신분/직업 카드 (STEP 2)
+  const occCards = document.querySelectorAll('#occupationGrid .option-card');
+  occCards.forEach(card => {
+    card.addEventListener('click', () => {
+      occCards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.userConditions.occupation = card.dataset.value;
+      speakTTS(`신분 ${state.userConditions.occupation} 선택`);
+      resetInactivityTimer();
+    });
+  });
+
+  // 가구 형태 카드 (STEP 2)
+  const houseCards = document.querySelectorAll('#householdGrid .option-card');
+  houseCards.forEach(card => {
+    card.addEventListener('click', () => {
+      houseCards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.userConditions.household = card.dataset.value;
+      speakTTS(`가구 형태 ${state.userConditions.household} 선택`);
+      resetInactivityTimer();
+    });
+  });
+
+  // 주거 유형 카드 (STEP 3)
+  const housingCards = document.querySelectorAll('#housingGrid .option-card');
+  housingCards.forEach(card => {
+    card.addEventListener('click', () => {
+      housingCards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.userConditions.housing = card.dataset.value;
+      speakTTS(`주거 유형 ${state.userConditions.housing} 선택`);
+      resetInactivityTimer();
+    });
+  });
+}
+
+// ==============================================================================
+// 5. 마법사 단계 전환 & 진행 바 제어
+// ==============================================================================
+function bindStepNavigationEvents() {
+  const btnStart = document.getElementById('btnStartSearch');
+  if (btnStart) {
+    btnStart.addEventListener('click', () => {
+      state.userName = '사용자';
+      goToStep('step1');
+    });
+  }
+}
+
+function goToStep(targetStepId) {
+  const steps = document.querySelectorAll('.step-container');
+  steps.forEach(step => step.classList.remove('active'));
+
+  const targetStep = document.getElementById(targetStepId);
+  if (targetStep) {
+    targetStep.classList.add('active');
+    state.currentStep = targetStepId;
+    updateProgressUI(targetStepId);
+    provideStepAudioGuide(targetStepId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  resetInactivityTimer();
+}
+
+function updateProgressUI(stepId) {
+  const wizardProgress = document.getElementById('wizardProgress');
+  const stepText = document.getElementById('stepIndicatorText');
+  const percentText = document.getElementById('stepPercentageText');
+  const fill = document.getElementById('progressFill');
+
+  if (!wizardProgress || !stepText || !percentText || !fill) return;
+
+  if (stepId === 'stepIntro' || stepId === 'stepLoading') {
+    wizardProgress.style.display = 'none';
+    return;
+  }
+
+  wizardProgress.style.display = 'block';
+
+  switch (stepId) {
+    case 'step1':
+      stepText.textContent = '단계 1 / 3: 연령 및 거주 지역';
+      percentText.textContent = '33%';
+      fill.style.width = '33%';
+      break;
+    case 'step2':
+      stepText.textContent = '단계 2 / 3: 신분 및 가구 형태';
+      percentText.textContent = '66%';
+      fill.style.width = '66%';
+      break;
+    case 'step3':
+      stepText.textContent = '단계 3 / 3: 주거 유형 및 소득 수준';
+      percentText.textContent = '100%';
+      fill.style.width = '100%';
+      break;
+    case 'stepResults':
+      stepText.textContent = 'AI 분석 완료: 맞춤형 추천 결과';
+      percentText.textContent = '100%';
+      fill.style.width = '100%';
+      break;
+    default:
+      wizardProgress.style.display = 'none';
+  }
+}
+
+// ==============================================================================
+// 6. 페르소나: 20세 자취 대학생 '김청년' 원클릭 시연
+// ==============================================================================
+function bindPersonaEvents() {
+  const btnPersonaKim = document.getElementById('btnPersonaKim');
+  if (!btnPersonaKim) return;
+
+  btnPersonaKim.addEventListener('click', () => {
+    // 1. 김청년 페르소나 데이터 주입
+    state.userName = '김청년';
+    state.userConditions = {
+      age: 20,
+      ageLabel: '만 19~29세 (청년층)',
+      city: '제주특별자치도', // 제주 지역특화 지원사업과 연계 시연
+      district: '제주시',
+      occupation: '대학생',
+      household: '1인 가구 (자취/독립)',
+      housing: '월세',
+      income: '중위소득 50% 이하 (수급/차상위)'
+    };
+
+    // 2. UI 컨트롤 동기화
+    syncInputsToState();
+
+    // 3. 안내 음성 및 즉시 분석 실행
+    speakTTS("페르소나 20세 자취 대학생 김청년 조건으로 AI 분석을 시작합니다.");
+    runAnalysis();
+  });
+}
+
+function syncInputsToState() {
+  // 연령 카드
+  document.querySelectorAll('#ageGrid .option-card').forEach(c => {
+    c.classList.toggle('selected', parseInt(c.dataset.age, 10) === state.userConditions.age);
+  });
+
+  // 시·도 및 시·군·구
+  const citySelect = document.getElementById('selectCity');
+  if (citySelect) {
+    citySelect.value = state.userConditions.city;
+    citySelect.dispatchEvent(new Event('change'));
+    const districtSelect = document.getElementById('selectDistrict');
+    if (districtSelect) districtSelect.value = state.userConditions.district;
+  }
+
+  // 신분 카드
+  document.querySelectorAll('#occupationGrid .option-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === state.userConditions.occupation);
+  });
+
+  // 가구 카드
+  document.querySelectorAll('#householdGrid .option-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === state.userConditions.household);
+  });
+
+  // 주거 카드
+  document.querySelectorAll('#housingGrid .option-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.value === state.userConditions.housing);
+  });
+
+  // 소득 셀렉트
+  const incomeSelect = document.getElementById('selectIncome');
+  if (incomeSelect) incomeSelect.value = state.userConditions.income;
+}
+
+// ==============================================================================
+// 7. AI 탐색 & 논리적 추론 매칭 엔진
+// ==============================================================================
+function runAnalysis() {
+  goToStep('stepLoading');
+
+  const step1 = document.getElementById('loadStep1');
+  const step2 = document.getElementById('loadStep2');
+  const step3 = document.getElementById('loadStep3');
+
+  if (step1) step1.className = 'loading-step-item active';
+  if (step2) step2.className = 'loading-step-item';
+  if (step3) step3.className = 'loading-step-item';
+
+  // 단계별 AI 로딩 애니메이션 시뮬레이션
+  setTimeout(() => {
+    if (step1) step1.className = 'loading-step-item completed';
+    if (step2) step2.className = 'loading-step-item active';
+  }, 450);
+
+  setTimeout(() => {
+    if (step2) step2.className = 'loading-step-item completed';
+    if (step3) step3.className = 'loading-step-item active';
+  }, 900);
+
+  setTimeout(() => {
+    executeMatchingAlgorithm();
+    goToStep('stepResults');
+  }, 1350);
+}
+
+function executeMatchingAlgorithm() {
+  const cond = state.userConditions;
+
+  // 1단계: 탐색(Search) 알고리즘 - 연령 및 거주 지역 후보 추출
+  const candidatePolicies = WELFARE_DATA.filter(policy => {
+    const pCond = policy.conditions;
+
+    // 연령 조건 검사
+    const matchAge = (!pCond.minAge || cond.age >= pCond.minAge) &&
+                     (!pCond.maxAge || cond.age <= pCond.maxAge);
+
+    // 지역 조건 검사 (전국 사업이거나 해당 지자체 사업)
+    const matchRegion = !pCond.regions || 
+                        pCond.regions.includes('전국') || 
+                        pCond.regions.includes(cond.city);
+
+    return matchAge && matchRegion;
+  });
+
+  // 2단계: 논리적 추론(Inference) 엔진 - 신분, 가구, 주거, 소득 대조 및 자격 판별
+  const evaluatedResults = candidatePolicies.map(policy => {
+    const pCond = policy.conditions;
+    let matchScore = 0;
+    let criteriaPassCount = 0;
+    let totalCriteria = 0;
+
+    // 신분 대조
+    totalCriteria++;
+    const matchOcc = (!pCond.occupations || pCond.occupations.length === 0 || pCond.occupations.includes(cond.occupation));
+    if (matchOcc) { criteriaPassCount++; matchScore += 25; }
+
+    // 가구 형태 대조
+    totalCriteria++;
+    const matchHouse = (!pCond.households || pCond.households.length === 0 || pCond.households.includes(cond.household));
+    if (matchHouse) { criteriaPassCount++; matchScore += 25; }
+
+    // 주거 유형 대조
+    totalCriteria++;
+    const matchHousing = (!pCond.housings || pCond.housings.length === 0 || pCond.housings.includes(cond.housing));
+    if (matchHousing) { criteriaPassCount++; matchScore += 25; }
+
+    // 소득 구간 대조
+    totalCriteria++;
+    const matchIncome = (!pCond.incomeLevels || pCond.incomeLevels.length === 0 || pCond.incomeLevels.includes(cond.income));
+    if (matchIncome) { criteriaPassCount++; matchScore += 25; }
+
+    // 지자체 특화 보너스 가중치
+    const isLocalSpecific = policy.conditions.regions && policy.conditions.regions.includes(cond.city) && !policy.conditions.regions.includes('전국');
+    if (isLocalSpecific) matchScore += 15;
+
+    // 자격 판별 상태 부여
+    const isFullMatch = (criteriaPassCount === totalCriteria);
+    const eligibilityStatus = isFullMatch ? 'high' : 'check';
+    const statusBadge = isFullMatch 
+      ? '🟢 신청 자격 충족' 
+      : '🟡 세부 조건 확인 필요';
+    const statusClass = isFullMatch ? 'status-high' : 'status-check';
+
+    return {
+      ...policy,
+      matchScore,
+      isFullMatch,
+      eligibilityStatus,
+      statusBadge,
+      statusClass
+    };
+  });
+
+  // 정렬: 자격 충족 우선 -> 매칭 스코어 높은 순
+  evaluatedResults.sort((a, b) => b.matchScore - a.matchScore);
+
+  // 3단계: 결과 화면 렌더링
+  renderResultsDashboard(evaluatedResults);
+}
+
+function renderResultsDashboard(policies) {
+  const cond = state.userConditions;
+
+  // 상단 사용자명 및 요약 태그
+  const nameEl = document.getElementById('resUserName');
+  if (nameEl) nameEl.textContent = state.userName;
+
+  const countEl = document.getElementById('resCountText');
+  if (countEl) countEl.textContent = policies.length;
+
+  const summaryEl = document.getElementById('userConditionsSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <span class="user-tag">👤 만 ${cond.age}세</span>
+      <span class="user-tag">📍 ${cond.city} ${cond.district !== '전체/시·군·구 무관' ? cond.district : ''}</span>
+      <span class="user-tag">💼 ${cond.occupation}</span>
+      <span class="user-tag">🏠 ${cond.household}</span>
+      <span class="user-tag">🚪 ${cond.housing}</span>
+      <span class="user-tag">💰 ${cond.income}</span>
+    `;
+  }
+
+  // 카드 목록 렌더링
+  const cardListEl = document.getElementById('policyCardList');
+  if (!cardListEl) return;
+
+  if (policies.length === 0) {
+    cardListEl.innerHTML = `
+      <div style="text-align: center; padding: 48px 20px; background: #ffffff; border-radius: 12px; border: 1px dashed #cbd5e1;">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">🔍</div>
+        <h3 style="font-size: 1.2rem; color: #334155;">선택하신 조건에 해당하는 지원사업이 없습니다.</h3>
+        <p style="color: #64748b; font-size: 0.9rem; margin-top: 6px;">
+          조건을 조금 더 넓게 조정하시거나 '처음으로' 버튼을 눌러 다시 시도해보세요.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  cardListEl.innerHTML = policies.map(policy => `
+    <div class="policy-card">
+      <div class="policy-card-top">
+        <div>
+          <span class="policy-org">${escapeHtml(policy.org)} · ${escapeHtml(policy.category)}</span>
+          <h3 class="policy-title">${escapeHtml(policy.title)}</h3>
+        </div>
+        <div class="eligibility-status-badge ${policy.statusClass}">
+          ${policy.statusBadge}
+        </div>
+      </div>
+      <div class="policy-benefit-highlight">
+        🎁 <strong>핵심 혜택:</strong> ${escapeHtml(policy.benefit)}
+      </div>
+      <div class="policy-meta-grid">
+        <div><strong>📌 지원 대상:</strong> ${escapeHtml(policy.targetDescription)}</div>
+        <div><strong>📅 신청 기간:</strong> ${escapeHtml(policy.period)}</div>
+      </div>
+      <div class="policy-card-actions">
+        <button class="btn-card-action primary" onclick="openDetailModal('${policy.id}')">
+          📋 필요 서류 & 자격 상세 확인
+        </button>
+        <a href="${escapeHtml(policy.officialUrl)}" target="_blank" rel="noopener noreferrer" class="btn-card-action" style="text-decoration:none;">
+          🌐 공식 신청처 바로가기 ↗
+        </a>
+      </div>
+    </div>
+  `).join('');
+
+  speakTTS(`AI 분석이 완료되었습니다. 총 ${policies.length}건의 맞춤형 지원사업이 검색되었습니다.`);
+}
+
+// ==============================================================================
+// 8. 상세 모달 (자격 대조표 & 서류 체크리스트)
+// ==============================================================================
+function openDetailModal(policyId) {
+  const policy = WELFARE_DATA.find(p => p.id === policyId);
+  if (!policy) return;
+
+  const cond = state.userConditions;
+  const modalTitle = document.getElementById('modalPolicyTitle');
+  const modalBody = document.getElementById('modalPolicyBody');
+  const officialLink = document.getElementById('btnOfficialLink');
+
+  if (modalTitle) modalTitle.textContent = `${policy.title} - 자격 대조 및 서류 안내`;
+  if (officialLink) officialLink.href = policy.officialUrl;
+
+  // 자격 대조 행 생성
+  const tableRows = (policy.criteriaDetail || []).map(crit => {
+    let userVal = '-';
+    let isPass = true;
+
+    if (crit.matchKey === 'age') {
+      userVal = `만 ${cond.age}세`;
+      isPass = (!policy.conditions.minAge || cond.age >= policy.conditions.minAge) &&
+               (!policy.conditions.maxAge || cond.age <= policy.conditions.maxAge);
+    } else if (crit.matchKey === 'household') {
+      userVal = cond.household;
+      isPass = (!policy.conditions.households || policy.conditions.households.length === 0 || policy.conditions.households.includes(cond.household));
+    } else if (crit.matchKey === 'housing') {
+      userVal = cond.housing;
+      isPass = (!policy.conditions.housings || policy.conditions.housings.length === 0 || policy.conditions.housings.includes(cond.housing));
+    } else if (crit.matchKey === 'income') {
+      userVal = cond.income;
+      isPass = (!policy.conditions.incomeLevels || policy.conditions.incomeLevels.length === 0 || policy.conditions.incomeLevels.includes(cond.income));
+    } else if (crit.matchKey === 'occupation') {
+      userVal = cond.occupation;
+      isPass = (!policy.conditions.occupations || policy.conditions.occupations.length === 0 || policy.conditions.occupations.includes(cond.occupation));
+    } else if (crit.matchKey === 'region') {
+      userVal = `${cond.city} ${cond.district}`;
+      isPass = (!policy.conditions.regions || policy.conditions.regions.includes('전국') || policy.conditions.regions.includes(cond.city));
+    } else {
+      userVal = '개별 신청 시 증빙';
+      isPass = true;
+    }
+
+    const badgeHtml = isPass
+      ? `<span style="color: #15803d; font-weight:700;">✅ 충족 (${escapeHtml(userVal)})</span>`
+      : `<span style="color: #b45309; font-weight:700;">ℹ️ 세부확인 (${escapeHtml(userVal)})</span>`;
+
+    return `
+      <tr>
+        <td style="font-weight:700; background: #f8fafc;">${escapeHtml(crit.name)}</td>
+        <td>${escapeHtml(crit.rule)}</td>
+        <td>${badgeHtml}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 서류 체크리스트 생성
+  const docItemsHtml = (policy.documents || []).map((doc, idx) => {
+    const isRequired = doc.type === 'required';
+    const badgeText = isRequired ? '필수 서류' : '선택/해당자';
+    const badgeClass = isRequired ? 'required' : 'optional';
+
+    return `
+      <div class="doc-item" id="docItem_${idx}">
+        <input type="checkbox" class="doc-checkbox" id="chkDoc_${idx}" onchange="toggleDocItem(${idx})">
+        <div class="doc-content">
+          <label for="chkDoc_${idx}" class="doc-name" style="cursor: pointer;">
+            ${escapeHtml(doc.name)}
+            <span class="doc-type-badge ${badgeClass}">${badgeText}</span>
+          </label>
+          <div class="doc-issuer-desc">🏢 <strong>발급처:</strong> ${escapeHtml(doc.issuer)}</div>
+          <div class="doc-how-to">💡 <strong>발급 요령:</strong> ${escapeHtml(doc.howTo)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (modalBody) {
+    modalBody.innerHTML = `
+      <div style="margin-bottom: 20px; background: #eff6ff; padding: 14px; border-radius: 8px; border: 1px solid #bfdbfe;">
+        <span style="font-weight: 800; color: #1e40af;">주요 지원:</span> ${escapeHtml(policy.benefit)}
+      </div>
+
+      <h4 class="modal-section-title">🔍 내 조건 vs 지원 요건 실시간 대조</h4>
+      <table class="condition-table">
+        <thead>
+          <tr>
+            <th style="width: 25%;">평가 항목</th>
+            <th style="width: 45%;">공식 사업 기준</th>
+            <th style="width: 30%;">내 조건 및 판정</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+
+      <h4 class="modal-section-title">📋 신청 필수·선택 서류 체크리스트</h4>
+      <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 12px;">
+        준비된 서류의 체크박스를 눌러 완료 상태를 확인하세요.
+      </p>
+      <div class="document-list">
+        ${docItemsHtml}
+      </div>
+    `;
+  }
+
+  openModal('detailModal');
+}
+
+function toggleDocItem(idx) {
+  const item = document.getElementById(`docItem_${idx}`);
+  const chk = document.getElementById(`chkDoc_${idx}`);
+  if (item && chk) {
+    item.classList.toggle('checked', chk.checked);
+  }
+}
+
+// ==============================================================================
+// 9. 모달 제어 (QR, SMS, 상세)
+// ==============================================================================
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('active');
+    resetInactivityTimer();
+  }
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('active');
+  }
+}
+
+function openQrModal() {
+  openModal('qrModal');
+  speakTTS("스마트폰 카메라로 화면의 QR코드를 스캔하시면 모바일로 결과를 저장하실 수 있습니다.");
+}
+
+function openSmsModal() {
+  const input = document.getElementById('inputUserPhone');
+  if (input) input.value = '';
+  openModal('smsModal');
+}
+
+function sendSmsSimulation() {
+  const phoneInput = document.getElementById('inputUserPhone');
+  const phone = phoneInput ? phoneInput.value.trim() : '';
+
+  if (!phone || phone.length < 10) {
+    alert('휴대폰 번호를 올바르게 입력해주세요. (예: 010-1234-5678)');
+    if (phoneInput) phoneInput.focus();
+    return;
+  }
+
+  alert(`[안내 발송 완료]\n\n${phone} 번호로 추천 공공지원사업과 서류 체크리스트 접속 링크가 무료 전송되었습니다.\n(입력된 번호는 시뮬레이션 직후 안전하게 파기됩니다.)`);
+  closeModal('smsModal');
+}
+
+// 모달 바깥 배경 클릭 시 닫기
+window.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('active');
+  }
+});
+
+// ==============================================================================
+// 10. 접근성 기능: 큰 글씨 모드 & TTS 음성 안내
+// ==============================================================================
+function bindAccessibilityEvents() {
+  // 큰 글씨 모드 토글
+  const btnFont = document.getElementById('btnToggleLargeFont');
+  if (btnFont) {
+    btnFont.addEventListener('click', () => {
+      state.isLargeFont = !state.isLargeFont;
+      document.documentElement.classList.toggle('large-font-mode', state.isLargeFont);
+      document.body.classList.toggle('large-font-mode', state.isLargeFont);
+      btnFont.classList.toggle('active', state.isLargeFont);
+      btnFont.innerHTML = state.isLargeFont ? '🔍 보통 글씨' : '🔍 큰 글씨';
+      speakTTS(state.isLargeFont ? '큰 글씨 모드가 켜졌습니다.' : '보통 글씨 모드로 전환되었습니다.');
+      resetInactivityTimer();
+    });
+  }
+
+  // TTS 음성 토글
+  const btnTTS = document.getElementById('btnToggleTTS');
+  if (btnTTS) {
+    btnTTS.addEventListener('click', () => {
+      state.isTTS = !state.isTTS;
+      btnTTS.classList.toggle('active', state.isTTS);
+      btnTTS.innerHTML = state.isTTS ? '🔊 음성 끄기' : '🔊 음성 안내';
+      if (state.isTTS) {
+        speakTTS('음성 안내 기능이 켜졌습니다. 각 단계별 설명을 소리로 안내해 드립니다.');
+      } else {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      }
+      resetInactivityTimer();
+    });
+  }
+
+  // 처음으로 전체 리셋 버튼
+  const btnReset = document.getElementById('btnResetAll');
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      resetAll();
+    });
+  }
+}
+
+function speakTTS(text) {
+  if (!state.isTTS) return;
+  if (!('speechSynthesis' in window)) return;
+
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'ko-KR';
+  utterance.rate = 0.95; // 키오스크 사용자 눈높이에 맞춘 또박또박한 속도
+  window.speechSynthesis.speak(utterance);
+}
+
+function provideStepAudioGuide(stepId) {
+  switch (stepId) {
+    case 'step1':
+      speakTTS('1단계입니다. 만 나이 연령대와 현재 거주하시는 지역을 선택해 주세요.');
+      break;
+    case 'step2':
+      speakTTS('2단계입니다. 현재 신분과 가구 형태를 선택해 주세요.');
+      break;
+    case 'step3':
+      speakTTS('3단계입니다. 현재 주거 유형과 대략적인 가구 소득 구간을 선택해 주세요.');
+      break;
+    case 'stepResults':
+      speakTTS('맞춤형 공공지원사업 분석 결과가 나왔습니다.');
+      break;
+  }
+}
+
+// ==============================================================================
+// 11. 무상태(Stateless) 개인정보 보호: 120초 자동 초기화 타이머
+// ==============================================================================
+function startInactivityTimer() {
+  state.timeLeft = 120;
+  updateTimerUI();
+
+  if (state.countdownInterval) clearInterval(state.countdownInterval);
+
+  state.countdownInterval = setInterval(() => {
+    state.timeLeft--;
+    updateTimerUI();
+
+    if (state.timeLeft <= 0) {
+      clearInterval(state.countdownInterval);
+      alert('장시간 입력이 없어 개인정보 보호를 위해 초기 화면으로 자동 리셋되었습니다.');
+      resetAll();
+    }
+  }, 1000);
+
+  // 사용자 인터랙션 감지
+  ['click', 'touchstart', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+  });
+}
+
+function resetInactivityTimer() {
+  state.timeLeft = 120;
+  updateTimerUI();
+}
+
+function updateTimerUI() {
+  const timerEl = document.getElementById('timerCountdown');
+  if (timerEl) {
+    timerEl.textContent = state.timeLeft;
+  }
+}
+
+function resetAll() {
+  state.userName = '사용자';
+  state.userConditions = {
+    age: 20,
+    ageLabel: '만 19~29세 (청년층)',
+    city: '서울특별시',
+    district: '전체/시·군·구 무관',
+    occupation: '대학생',
+    household: '1인 가구 (자취/독립)',
+    housing: '월세',
+    income: '중위소득 50% 이하 (수급/차상위)'
+  };
+
+  syncInputsToState();
+  goToStep('stepIntro');
+  resetInactivityTimer();
+  speakTTS('키오스크 화면이 처음으로 초기화되었습니다.');
+}
+
+// ==============================================================================
+// 유틸리티
+// ==============================================================================
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary and log files
+*.log
+*.zip
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
